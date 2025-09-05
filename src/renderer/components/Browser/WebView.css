@@ -1,19 +1,25 @@
 .webview-container {
   position: absolute;
-  top: 48px; /* Height of navigation bar */
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   width: 100%;
-  height: calc(100vh - 48px);
+  height: 100%;
   background: #ffffff;
   overflow: hidden;
 }
 
+.webview-container.inactive {
+  visibility: hidden;
+}
+
+.webview-container.active {
+  visibility: visible;
+  z-index: 1;
+}
+
 .webview {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100% !important;
   height: 100% !important;
   border: none;

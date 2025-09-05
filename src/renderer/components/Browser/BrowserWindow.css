@@ -1,7 +1,38 @@
 .browser-window {
-  position: relative;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   width: 100vw;
+  background: var(--bg-secondary);
   overflow: hidden;
-  background: #f0f0f0;
+  margin: 0;
+  padding: 0;
+}
+
+.webviews-container {
+  flex: 1;
+  position: relative;
+  background: var(--bg-primary);
+  overflow: hidden;
+  width: 100%;
+  min-height: 0;
+}
+
+.webview-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.webview-wrapper.inactive {
+  visibility: hidden;
+}
+
+.webview-wrapper.active {
+  visibility: visible;
+  z-index: 1;
 }

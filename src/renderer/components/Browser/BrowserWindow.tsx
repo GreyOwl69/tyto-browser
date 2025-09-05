@@ -1,59 +1,151 @@
 import React, { useState, useRef, useCallback } from 'react';
+import TabBar, { Tab } from './TabBar';
 import NavigationBar from './NavigationBar';
-import WebView from './WebView';
+import WebView, { WebViewRef } from './WebView';
 import './BrowserWindow.css';
 
 const BrowserWindow: React.FC = () => {
-  const [currentUrl, setCurrentUrl] = useState('https://www.google.com');
-  const [isLoading, setIsLoading] = useState(false);
+  const [tabs, setTabs] = useState<Tab[]>([
+    {
+      id: '1',
+      title: 'Google',
+      url: 'https://www.google.com',
+      isLoading: false,
+    }
+  ]);
+  const [activeTabId, setActiveTabId] = useState('1');
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const webViewRef = useRef<any>(null);
+  const webviewRefs = useRef<{ [key: string]: any }>({});
+
+  const generateTabId = () => Date.now().toString();
+
+  const handleNewTab = useCallback(() => {
+    const newTabId = generateTabId();
+    const newTab: Tab = {
+      id: newTabId,
+      title: 'New Tab',
+      url: 'https://www.google.com',
+      isLoading: false,
+    };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTabId);
+  }, []);
+
+  const handleTabSelect = useCallback((tabId: string) => {
+    setActiveTabId(tabId);
+    setTimeout(() => {
+      updateNavigationState();
+    }, 100);
+  }, []);
+
+  const handleTabClose = useCallback((tabId: string) => {
+    setTabs(prev => {
+      const updatedTabs = prev.filter(tab => tab.id !== tabId);
+      
+      if (tabId === activeTabId && updatedTabs.length > 0) {
+        const currentIndex = prev.findIndex(tab => tab.id === tabId);
+        const nextTab = updatedTabs[currentIndex] || updatedTabs[currentIndex - 1] || updatedTabs[0];
+        setActiveTabId(nextTab.id);
+      }
+      
+      delete webviewRefs.current[tabId];
+      return updatedTabs;
+    });
+  }, [activeTabId]);
+
+  const updateNavigationState = useCallback(() => {
+    const webview = webviewRefs.current[activeTabId];
+    if (webview) {
+      setCanGoBack(webview.canGoBack ? webview.canGoBack() : false);
+      setCanGoForward(webview.canGoForward ? webview.canGoForward() : false);
+    }
+  }, [activeTabId]);
 
   const handleNavigate = useCallback((url: string) => {
-    if (url !== currentUrl) {
-      setCurrentUrl(url);
-      setIsLoading(true);
-    }
-  }, [currentUrl]);
+    setTabs(prev => prev.map(tab => 
+      tab.id === activeTabId 
+        ? { ...tab, url, isLoading: true }
+        : tab
+    ));
+  }, [activeTabId]);
 
   const handleGoBack = useCallback(() => {
-    if (webViewRef.current && canGoBack) {
-      webViewRef.current.goBack();
+    const webview = webviewRefs.current[activeTabId];
+    if (webview && webview.canGoBack && webview.canGoBack()) {
+      webview.goBack();
+      setTimeout(updateNavigationState, 500);
     }
-  }, [canGoBack]);
+  }, [activeTabId, updateNavigationState]);
 
   const handleGoForward = useCallback(() => {
-    if (webViewRef.current && canGoForward) {
-      webViewRef.current.goForward();
+    const webview = webviewRefs.current[activeTabId];
+    if (webview && webview.canGoForward && webview.canGoForward()) {
+      webview.goForward();
+      setTimeout(updateNavigationState, 500);
     }
-  }, [canGoForward]);
+  }, [activeTabId, updateNavigationState]);
 
   const handleRefresh = useCallback(() => {
-    if (webViewRef.current) {
-      webViewRef.current.reload();
+    const webview = webviewRefs.current[activeTabId];
+    if (webview && webview.reload) {
+      webview.reload();
     }
+  }, [activeTabId]);
+
+  const handleLoadStart = useCallback((tabId: string) => {
+    setTabs(prev => prev.map(tab => 
+      tab.id === tabId 
+        ? { ...tab, isLoading: true }
+        : tab
+    ));
   }, []);
 
-  const handleLoadStart = useCallback(() => {
-    setIsLoading(true);
-  }, []);
-
-  const handleLoadStop = useCallback(() => {
-    setIsLoading(false);
-  }, []);
-
-  const handleUrlChange = useCallback((url: string) => {
-    if (url !== currentUrl) {
-      setCurrentUrl(url);
+  const handleLoadStop = useCallback((tabId: string) => {
+    setTabs(prev => prev.map(tab => 
+      tab.id === tabId 
+        ? { ...tab, isLoading: false }
+        : tab
+    ));
+    if (tabId === activeTabId) {
+      setTimeout(updateNavigationState, 100);
     }
-  }, [currentUrl]);
+  }, [activeTabId, updateNavigationState]);
+
+  const handleUrlChange = useCallback((tabId: string, url: string) => {
+    setTabs(prev => prev.map(tab => 
+      tab.id === tabId 
+        ? { ...tab, url }
+        : tab
+    ));
+    if (tabId === activeTabId) {
+      setTimeout(updateNavigationState, 100);
+    }
+  }, [activeTabId, updateNavigationState]);
+
+  const handleTitleChange = useCallback((tabId: string, title: string) => {
+    setTabs(prev => prev.map(tab => 
+      tab.id === tabId 
+        ? { ...tab, title: title || 'New Tab' }
+        : tab
+    ));
+  }, []);
+
+  const activeTab = tabs.find(tab => tab.id === activeTabId);
 
   return (
     <div className="browser-window">
+      <TabBar
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onTabSelect={handleTabSelect}
+        onTabClose={handleTabClose}
+        onNewTab={handleNewTab}
+      />
+      
       <NavigationBar
-        currentUrl={currentUrl}
-        isLoading={isLoading}
+        currentUrl={activeTab?.url || ''}
+        isLoading={activeTab?.isLoading || false}
         canGoBack={canGoBack}
         canGoForward={canGoForward}
         onNavigate={handleNavigate}
@@ -61,15 +153,63 @@ const BrowserWindow: React.FC = () => {
         onGoForward={handleGoForward}
         onRefresh={handleRefresh}
       />
-      <WebView
-        ref={webViewRef}
-        url={currentUrl}
-        onLoadStart={handleLoadStart}
-        onLoadStop={handleLoadStop}
-        onUpdateCanGoBack={setCanGoBack}
-        onUpdateCanGoForward={setCanGoForward}
-        onUrlChange={handleUrlChange}
-      />
+      
+      <div className="webviews-container">
+        {tabs.map(tab => (
+          <div 
+            key={tab.id}
+            className={`webview-wrapper ${tab.id === activeTabId ? 'active' : 'inactive'}`}
+          >
+            <webview
+              ref={(ref) => {
+                if (ref) {
+                  webviewRefs.current[tab.id] = ref;
+                  
+                  // FIXED: Add proper event listeners for loading state
+                  ref.addEventListener('did-start-loading', () => {
+                    console.log(`Tab ${tab.id} started loading`);
+                    handleLoadStart(tab.id);
+                  });
+                  
+                  ref.addEventListener('did-stop-loading', () => {
+                    console.log(`Tab ${tab.id} stopped loading`);
+                    handleLoadStop(tab.id);
+                    
+                    // Get page title after loading
+                    const title = ref.getTitle();
+                    if (title) {
+                      handleTitleChange(tab.id, title);
+                    }
+                  });
+                  
+                  ref.addEventListener('did-navigate', () => {
+                    const currentUrl = ref.getURL();
+                    if (currentUrl) {
+                      handleUrlChange(tab.id, currentUrl);
+                    }
+                    updateNavigationState();
+                  });
+                  
+                  ref.addEventListener('did-navigate-in-page', () => {
+                    updateNavigationState();
+                  });
+                  
+                  ref.addEventListener('page-title-updated', () => {
+                    const title = ref.getTitle();
+                    if (title) {
+                      handleTitleChange(tab.id, title);
+                    }
+                  });
+                }
+              }}
+              src={tab.url}
+              style={{ width: '100%', height: '100%' }}
+              allowpopups="true"
+              webpreferences="webSecurity=false"
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
