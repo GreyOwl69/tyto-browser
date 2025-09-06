@@ -23,7 +23,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   const [themeMode, setThemeModeState] = useState<'system' | 'light' | 'dark'>('system');
 
   useEffect(() => {
-    // Use CSS media query for system theme detection
+    // Use CSS media query for system theme detection (no IPC needed)
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     setIsDark(mediaQuery.matches);
     updateCSSVariables(mediaQuery.matches);
@@ -46,7 +46,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     } else if (mode === 'light') {
       dark = false;
     } else {
-      // system - use media query
       dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     

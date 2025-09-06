@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import TabBar, { Tab } from './TabBar';
 import NavigationBar from './NavigationBar';
-import WebView, { WebViewRef } from './WebView';
 import './BrowserWindow.css';
 
 const BrowserWindow: React.FC = () => {
@@ -20,6 +19,14 @@ const BrowserWindow: React.FC = () => {
 
   const generateTabId = () => Date.now().toString();
 
+  const updateNavigationState = useCallback(() => {
+    const webview = webviewRefs.current[activeTabId];
+    if (webview) {
+      setCanGoBack(webview.canGoBack ? webview.canGoBack() : false);
+      setCanGoForward(webview.canGoForward ? webview.canGoForward() : false);
+    }
+  }, [activeTabId]);
+
   const handleNewTab = useCallback(() => {
     const newTabId = generateTabId();
     const newTab: Tab = {
@@ -37,9 +44,11 @@ const BrowserWindow: React.FC = () => {
     setTimeout(() => {
       updateNavigationState();
     }, 100);
-  }, []);
+  }, [updateNavigationState]);
 
   const handleTabClose = useCallback((tabId: string) => {
+    if (tabs.length === 1) return;
+
     setTabs(prev => {
       const updatedTabs = prev.filter(tab => tab.id !== tabId);
       
@@ -52,15 +61,7 @@ const BrowserWindow: React.FC = () => {
       delete webviewRefs.current[tabId];
       return updatedTabs;
     });
-  }, [activeTabId]);
-
-  const updateNavigationState = useCallback(() => {
-    const webview = webviewRefs.current[activeTabId];
-    if (webview) {
-      setCanGoBack(webview.canGoBack ? webview.canGoBack() : false);
-      setCanGoForward(webview.canGoForward ? webview.canGoForward() : false);
-    }
-  }, [activeTabId]);
+  }, [activeTabId, tabs.length]);
 
   const handleNavigate = useCallback((url: string) => {
     setTabs(prev => prev.map(tab => 
@@ -118,10 +119,7 @@ const BrowserWindow: React.FC = () => {
         ? { ...tab, url }
         : tab
     ));
-    if (tabId === activeTabId) {
-      setTimeout(updateNavigationState, 100);
-    }
-  }, [activeTabId, updateNavigationState]);
+  }, []);
 
   const handleTitleChange = useCallback((tabId: string, title: string) => {
     setTabs(prev => prev.map(tab => 
@@ -165,17 +163,12 @@ const BrowserWindow: React.FC = () => {
                 if (ref) {
                   webviewRefs.current[tab.id] = ref;
                   
-                  // FIXED: Add proper event listeners for loading state
                   ref.addEventListener('did-start-loading', () => {
-                    console.log(`Tab ${tab.id} started loading`);
                     handleLoadStart(tab.id);
                   });
                   
                   ref.addEventListener('did-stop-loading', () => {
-                    console.log(`Tab ${tab.id} stopped loading`);
                     handleLoadStop(tab.id);
-                    
-                    // Get page title after loading
                     const title = ref.getTitle();
                     if (title) {
                       handleTitleChange(tab.id, title);
@@ -188,17 +181,6 @@ const BrowserWindow: React.FC = () => {
                       handleUrlChange(tab.id, currentUrl);
                     }
                     updateNavigationState();
-                  });
-                  
-                  ref.addEventListener('did-navigate-in-page', () => {
-                    updateNavigationState();
-                  });
-                  
-                  ref.addEventListener('page-title-updated', () => {
-                    const title = ref.getTitle();
-                    if (title) {
-                      handleTitleChange(tab.id, title);
-                    }
                   });
                 }
               }}

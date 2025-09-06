@@ -1,5 +1,5 @@
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, nativeTheme } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
@@ -20,15 +20,15 @@ ipcMain.handle('ipc-test', async () => {
   return 'pong';
 });
 
-// COMMENTED OUT: Advanced theme handling
-// ipcMain.handle('get-theme', () => ({
-//   isDark: nativeTheme.shouldUseDarkColors,
-// }));
-// 
-// ipcMain.handle('set-theme', (_, themeSource: 'system' | 'light' | 'dark') => {
-//   nativeTheme.themeSource = themeSource;
-//   return { isDark: nativeTheme.shouldUseDarkColors };
-// });
+// THEME IPC HANDLERS
+ipcMain.handle('get-theme', () => ({
+  isDark: nativeTheme.shouldUseDarkColors,
+}));
+
+ipcMain.handle('set-theme', (_, themeSource: 'system' | 'light' | 'dark') => {
+  nativeTheme.themeSource = themeSource;
+  return { isDark: nativeTheme.shouldUseDarkColors };
+});
 
 const createWindow = async (): Promise<void> => {
   mainWindow = new BrowserWindow({
@@ -72,16 +72,17 @@ const createWindow = async (): Promise<void> => {
     return { action: 'deny' };
   });
 
-  // COMMENTED OUT: Theme handling
-  // const updateTheme = () => {
-  //   if (mainWindow) {
-  //     mainWindow.webContents.send('theme-updated', {
-  //       isDark: nativeTheme.shouldUseDarkColors,
-  //     });
-  //   }
-  // };
-  // nativeTheme.on('updated', updateTheme);
-  // mainWindow.webContents.once('did-finish-load', updateTheme);
+  // THEME HANDLING
+  const updateTheme = () => {
+    if (mainWindow) {
+      mainWindow.webContents.send('theme-updated', {
+        isDark: nativeTheme.shouldUseDarkColors,
+      });
+    }
+  };
+
+  nativeTheme.on('updated', updateTheme);
+  mainWindow.webContents.once('did-finish-load', updateTheme);
 
   new AppUpdater();
 };

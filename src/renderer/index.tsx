@@ -5,9 +5,12 @@ const container = document.getElementById('root') as HTMLElement;
 const root = createRoot(container);
 root.render(<App />);
 
-// calling IPC exposed from preload script
+// Fix the IPC method names
 window.electron?.ipcRenderer.once('ipc-example', (arg) => {
-  // eslint-disable-next-line no-console
   console.log(arg);
 });
-window.electron?.ipcRenderer.sendMessage('ipc-example', ['ping']);
+
+// Change sendMessage to send
+window.electron?.ipcRenderer.send('ipc-example', ['ping']);
+
+// Also add corresponding handler in main.ts if needed
